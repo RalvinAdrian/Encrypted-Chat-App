@@ -1,8 +1,9 @@
 import express from 'express'
 import { Server } from "socket.io"
+
+// untuk run local
 import path from 'path'
 import { fileURLToPath } from 'url'
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -13,9 +14,24 @@ const app = express()
 
 app.use(express.static(path.join(__dirname, "public")))
 
-const expressServer = app.listen(PORT, () => {
+import https from 'https'
+import fs from 'fs'
+
+const sslServer = https.createServer(
+    {
+        key: fs.readFileSync(path.join(__dirname, 'cert', 'key.pem')),
+        cert: fs.readFileSync(path.join(__dirname, 'cert', 'cert.pem')),
+    },
+    app
+)
+
+sslServer.listen(PORT, () => {
     console.log(`listening on port ${PORT}`)
 })
+
+// const expressServer = app.listen(PORT, () => {
+//     console.log(`listening on port ${PORT}`)
+// })
 
 // state 
 const UsersState = {
@@ -25,11 +41,16 @@ const UsersState = {
     }
 }
 
-const io = new Server(expressServer, {
+const io = new Server(sslServer, {
     cors: {
         origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5500", "http://127.0.0.1:5500"]
     }
 })
+// const io = new Server(expressServer, {
+//     cors: {
+//         origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5500", "http://127.0.0.1:5500"]
+//     }
+// })
 
 io.on('connection', socket => {
     console.log(`User ${socket.id} connected`)
