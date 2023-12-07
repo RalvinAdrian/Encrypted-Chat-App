@@ -2,15 +2,13 @@ const socket = io('ws://localhost:3500')
 
 const msgInput = document.querySelector('#message')
 const nameInput = document.querySelector('#name')
-const chatRoom = document.querySelector('#room')
-const activity = document.querySelector('.activity')
+const passwordInput = document.querySelector('#password')
 const usersList = document.querySelector('.user-list')
-const roomList = document.querySelector('.room-list')
 const chatDisplay = document.querySelector('.chat-display')
 
 function sendMessage(e) {
     e.preventDefault()
-    if (nameInput.value && msgInput.value && chatRoom.value) {
+    if (nameInput.value && msgInput.value) {
         socket.emit('message', {
             name: nameInput.value,
             text: msgInput.value
@@ -18,16 +16,6 @@ function sendMessage(e) {
         msgInput.value = ""
     }
     msgInput.focus()
-}
-
-function enterRoom(e) {
-    e.preventDefault()
-    if (nameInput.value && chatRoom.value) {
-        socket.emit('enterRoom', {
-            name: nameInput.value,
-            room: chatRoom.value
-        })
-    }
 }
 
 document.querySelector('.form-msg')
@@ -42,6 +30,8 @@ msgInput.addEventListener('keypress', () => {
 
 // Listen for messages 
 socket.on("message", (data) => {
+    // Assuming 'activity' is a placeholder for the element that displays user activity.
+    // You may need to replace this with the actual element.
     activity.textContent = ""
     const { name, text, time } = data
     const li = document.createElement('li')
@@ -65,29 +55,14 @@ socket.on("message", (data) => {
     chatDisplay.scrollTop = chatDisplay.scrollHeight
 })
 
-let activityTimer
-socket.on("activity", (name) => {
-    activity.textContent = `${name} is typing...`
-
-    // Clear after 3 seconds 
-    clearTimeout(activityTimer)
-    activityTimer = setTimeout(() => {
-        activity.textContent = ""
-    }, 3000)
-})
-
 socket.on('userList', ({ users }) => {
     showUsers(users)
-})
-
-socket.on('roomList', ({ rooms }) => {
-    showRooms(rooms)
 })
 
 function showUsers(users) {
     usersList.textContent = ''
     if (users) {
-        usersList.innerHTML = `<em>Users in ${chatRoom.value}:</em>`
+        usersList.innerHTML = `<em>Users:</em>`
         users.forEach((user, i) => {
             usersList.textContent += ` ${user.name}`
             if (users.length > 1 && i !== users.length - 1) {
@@ -97,15 +72,14 @@ function showUsers(users) {
     }
 }
 
-function showRooms(rooms) {
-    roomList.textContent = ''
-    if (rooms) {
-        roomList.innerHTML = '<em>Active Rooms:</em>'
-        rooms.forEach((room, i) => {
-            roomList.textContent += ` ${room}`
-            if (rooms.length > 1 && i !== rooms.length - 1) {
-                roomList.textContent += ","
-            }
-        })
+function enterRoom(e) {
+    e.preventDefault();
+    const name = nameInput.value;
+    const password = passwordInput.value;
+
+    if (name && password) {
+        socket.emit('login', { name, password });
     }
 }
+
+document.querySelector('.form-join').addEventListener('submit', enterRoom);
