@@ -58,21 +58,6 @@ io.on('connection', socket => {
                 users: getUsersInRoom(prevRoom)
             })
         }
-        //send private key to user
-        // console.log( await exportCryptoKey(key));
-        socket.emit('pkey',await exportCryptoKey(key));
-        function ab2str(buf) {
-            return String.fromCharCode.apply(null, new Uint8Array(buf));
-        }
-        async function exportCryptoKey(key) {
-            const exported = await crypto.subtle.exportKey("pkcs8", key);
-            const exportedAsString = ab2str(exported);
-            const exportedAsBase64 = btoa(exportedAsString);
-            const pemExported = `-----BEGIN PRIVATE KEY-----\n${exportedAsBase64}\n-----END PRIVATE KEY-----`;
-            return pemExported;
-        }
-          
-        // console.log(await importPrivateKey(await exportCryptoKey(key)));
 
         // join room 
         socket.join(user.room)
@@ -128,10 +113,20 @@ io.on('connection', socket => {
         const recKey=getRecipient(socket.id)?.publicKey;
         
         const msg= await buildMsgEnc(name, text,recKey);
-        console.log(msg);
+        
+        const decrypted=await decrypt(msg.text,getRecipient(socket.id)?.privateKey);
+        console.log( {
+            name: msg.name,
+            text: decrypted,
+            time: msg.time
+        });
         
         if (room) {
-            io.to(room).emit('encmessage', msg)
+            io.to(room).emit('encmessage', {
+                name: msg.name,
+                text: decrypted,
+                time: msg.time
+            })
         }
     })
 
@@ -182,14 +177,13 @@ async function activateUser(id, name, room, socket) {
         const publicKey=keyPair.publicKey;
         const privateKey=keyPair.privateKey;
         
-        const user = { id, name, room, publicKey}
+        const user = { id, name, room, publicKey,privateKey}
         UsersState.setUsers([
             ...UsersState.users.filter(user => user.id !== id),
             user
         ])
         return {
-            user: user,
-            key: privateKey
+            user: user
         };
     });
     return await res;
@@ -227,6 +221,17 @@ async function encryptMessage(key,message) {
       key,
       encoded
     );
-    console.log(ciphertext);
     return ciphertext;
   }
+
+  async function decrypt(ciphertext,key){
+    let decrypted = await crypto.subtle.decrypt(
+        {
+          name: "RSA-OAEP"
+        },
+        key,
+        ciphertext
+      );
+    let decoder= new TextDecoder();
+    return decoder.decode(decrypted);
+}
