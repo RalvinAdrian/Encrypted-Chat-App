@@ -7,6 +7,7 @@ const activity = document.querySelector('.activity')
 const usersList = document.querySelector('.user-list')
 const roomList = document.querySelector('.room-list')
 const chatDisplay = document.querySelector('.chat-display')
+let currKey;
 
 function sendMessage(e) {
     e.preventDefault()
@@ -65,6 +66,31 @@ socket.on("message", (data) => {
     chatDisplay.scrollTop = chatDisplay.scrollHeight
 })
 
+socket.on("encmessage", (data) => {
+    activity.textContent = ""
+    const { name, text, time } = data
+    const decrypted = decrypt(text);
+    const li = document.createElement('li')
+    li.className = 'post'
+    if (name === nameInput.value) li.className = 'post post--left'
+    if (name !== nameInput.value && name !== 'Admin') li.className = 'post post--right'
+    if (name !== 'Admin') {
+        li.innerHTML = `<div class="post__header ${name === nameInput.value
+            ? 'post__header--user'
+            : 'post__header--reply'
+            }">
+        <span class="post__header--name">${name}</span> 
+        <span class="post__header--time">${time}</span> 
+        </div>
+        <div class="post__text">${decrypted}</div>`
+    } else {
+        li.innerHTML = `<div class="post__text">${decrypted}</div>`
+    }
+    document.querySelector('.chat-display').appendChild(li)
+
+    chatDisplay.scrollTop = chatDisplay.scrollHeight
+})
+
 let activityTimer
 socket.on("activity", (name) => {
     activity.textContent = `${name} is typing...`
@@ -82,6 +108,10 @@ socket.on('userList', ({ users }) => {
 
 socket.on('roomList', ({ rooms }) => {
     showRooms(rooms)
+})
+
+socket.on('pkey', ({ key }) => {
+    currKey=key;
 })
 
 function showUsers(users) {
@@ -108,4 +138,16 @@ function showRooms(rooms) {
             }
         })
     }
+}
+
+async function decrypt(ciphertext){
+    let decrypted = await window.crypto.subtle.decrypt(
+        {
+          name: "RSA-OAEP"
+        },
+        currKey,
+        ciphertext
+      );
+    let decoder= new TextDecoder();
+    return decoder.decode(decrypted);
 }
