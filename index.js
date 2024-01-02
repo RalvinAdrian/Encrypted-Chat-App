@@ -39,7 +39,7 @@ io.on('connection', socket => {
     // Upon connection - only to user 
     socket.emit('message', buildMsg(ADMIN, "Welcome to Chat App!"))
 
-    socket.on('enterRoom',  ({ name, room }) => {
+    socket.on('enterRoom',  async ({ name, room }) => {
 
         // leave previous room 
         const prevRoom = getUser(socket.id)?.room
@@ -49,36 +49,34 @@ io.on('connection', socket => {
             io.to(prevRoom).emit('message', buildMsg(ADMIN, `${name} has left the room`))
         }
 
-        const user = activateUser(socket.id, name, room,socket);
-        console.log(user);
-        user.then((user)=>{
-            // Cannot update previous room users list until after the state update in activate user 
-            if (prevRoom) {
-                io.to(prevRoom).emit('userList', {
-                    users: getUsersInRoom(prevRoom)
-                })
-            }
-    
-            // join room 
-            socket.join(user.room)
-    
-            // To user who joined 
-            socket.emit('message', buildMsg(ADMIN, `You have joined the ${user.room} chat room`))
-    
-            // To everyone else 
-            socket.broadcast.to(user.room).emit('message', buildMsg(ADMIN, `${user.name} has joined the room`))
-    
-            // Update user list for room 
-            io.to(user.room).emit('userList', {
-                users: getUsersInRoom(user.room)
+        let {user,pkey} = await activateUser(socket.id, name, room,socket);
+        // Cannot update previous room users list until after the state update in activate user 
+        if (prevRoom) {
+            io.to(prevRoom).emit('userList', {
+                users: getUsersInRoom(prevRoom)
             })
-    
-            // Update rooms list for everyone 
-            io.emit('roomList', {
-                rooms: getAllActiveRooms()
-            })
+        }
+        //send private key to user
+        socket.emit('pkey',pkey);
 
-        });
+        // join room 
+        socket.join(user.room)
+
+        // To user who joined 
+        socket.emit('message', buildMsg(ADMIN, `You have joined the ${user.room} chat room`))
+
+        // To everyone else 
+        socket.broadcast.to(user.room).emit('message', buildMsg(ADMIN, `${user.name} has joined the room`))
+
+        // Update user list for room 
+        io.to(user.room).emit('userList', {
+            users: getUsersInRoom(user.room)
+        })
+
+        // Update rooms list for everyone 
+        io.emit('roomList', {
+            rooms: getAllActiveRooms()
+        })
 
     })
 
@@ -103,11 +101,22 @@ io.on('connection', socket => {
     })
 
     // Listening for a message event 
-    socket.on('encmessage', ({ name, text }) => {
+    // socket.on('message', ({ name, text }) => {
+    //     const room = getUser(socket.id)?.room
+    //     if (room) {
+    //         io.to(room).emit('message', buildMsg(name, text))
+    //     }
+    // })
+
+    socket.on('encmessage', async ({ name, text }) => {
         const room = getUser(socket.id)?.room
         const recKey=getRecipient(socket.id)?.publicKey;
+        
+        const msg= await buildMsgEnc(name, text,recKey);
+        // console.log(msg);
+        
         if (room) {
-            io.to(room).emit('encmessage', buildMsgEnc(name, text,recKey))
+            io.to(room).emit('encmessage', msg)
         }
     })
 
@@ -132,8 +141,8 @@ function buildMsg(name, text) {
     }
 }
 
-function buildMsgEnc(name, text,key) {
-    let msg=encryptMessage(key,text);
+async function buildMsgEnc(name, text,key) {
+    let msg= await encryptMessage(key,text);
     return {
         name,
         msg,
@@ -147,7 +156,7 @@ function buildMsgEnc(name, text,key) {
 
 // User functions 
 async function activateUser(id, name, room, socket) {
-    crypto.subtle.generateKey(
+    const res=crypto.subtle.generateKey(
         {
             name: "RSA-OAEP",
             modulusLength: 2048,
@@ -156,18 +165,19 @@ async function activateUser(id, name, room, socket) {
         },true,["encrypt", "decrypt"]
     ).then((keyPair) => {
         const publicKey=keyPair.publicKey;
-        socket.emit('pkey',keyPair.privateKey)
+        const privateKey=keyPair.privateKey;
+        
         const user = { id, name, room, publicKey}
         UsersState.setUsers([
             ...UsersState.users.filter(user => user.id !== id),
             user
         ])
-        console.log(user);
-        return new Promise((resolve)=>{
-            resolve(user);
-        })
+        return {
+            user: user,
+            pKey: privateKey
+        };
     });
-    
+    return res;
 }
 
 function userLeavesApp(id) {

@@ -1,3 +1,4 @@
+
 const socket = io('ws://localhost:3500')
 
 const msgInput = document.querySelector('#message')
@@ -12,7 +13,7 @@ let currKey;
 function sendMessage(e) {
     e.preventDefault()
     if (nameInput.value && msgInput.value && chatRoom.value) {
-        socket.emit('message', {
+        socket.emit('encmessage', {
             name: nameInput.value,
             text: msgInput.value
         })
@@ -66,10 +67,13 @@ socket.on("message", (data) => {
     chatDisplay.scrollTop = chatDisplay.scrollHeight
 })
 
-socket.on("encmessage", (data) => {
+socket.on("encmessage", async (data) => {
     activity.textContent = ""
+    console.log(data);
+    console.log(100000);
+    console.log(currKey);
     const { name, text, time } = data
-    const decrypted = decrypt(text);
+    const decrypted = await decrypt(currKey,text);
     const li = document.createElement('li')
     li.className = 'post'
     if (name === nameInput.value) li.className = 'post post--left'
@@ -111,6 +115,7 @@ socket.on('roomList', ({ rooms }) => {
 })
 
 socket.on('pkey', ({ key }) => {
+    console.log(key);
     currKey=key;
 })
 
@@ -140,14 +145,15 @@ function showRooms(rooms) {
     }
 }
 
-async function decrypt(ciphertext){
+async function decrypt(key,ciphertext){
     let decrypted = await window.crypto.subtle.decrypt(
         {
           name: "RSA-OAEP"
         },
-        currKey,
+        key,
         ciphertext
       );
     let decoder= new TextDecoder();
+    console.log(decoder.decode(decrypted));
     return decoder.decode(decrypted);
 }
