@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import { Socket } from 'dgram'
+import { serialize, parse } from "cookie";
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,6 +29,7 @@ const UsersState = {
 }
 
 const io = new Server(expressServer, {
+    cookie:true,
     cors: {
         origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5500", "http://127.0.0.1:5500"]
     }
@@ -49,7 +51,7 @@ io.on('connection', socket => {
             io.to(prevRoom).emit('message', buildMsg(ADMIN, `${name} has left the room`))
         }
 
-        let {user,pkey} = await activateUser(socket.id, name, room,socket);
+        let {user,key} = await activateUser(socket.id, name, room,socket);
         // Cannot update previous room users list until after the state update in activate user 
         if (prevRoom) {
             io.to(prevRoom).emit('userList', {
@@ -57,7 +59,20 @@ io.on('connection', socket => {
             })
         }
         //send private key to user
-        socket.emit('pkey',pkey);
+        // console.log( await exportCryptoKey(key));
+        socket.emit('pkey',await exportCryptoKey(key));
+        function ab2str(buf) {
+            return String.fromCharCode.apply(null, new Uint8Array(buf));
+        }
+        async function exportCryptoKey(key) {
+            const exported = await crypto.subtle.exportKey("pkcs8", key);
+            const exportedAsString = ab2str(exported);
+            const exportedAsBase64 = btoa(exportedAsString);
+            const pemExported = `-----BEGIN PRIVATE KEY-----\n${exportedAsBase64}\n-----END PRIVATE KEY-----`;
+            return pemExported;
+        }
+          
+        // console.log(await importPrivateKey(await exportCryptoKey(key)));
 
         // join room 
         socket.join(user.room)
@@ -113,7 +128,7 @@ io.on('connection', socket => {
         const recKey=getRecipient(socket.id)?.publicKey;
         
         const msg= await buildMsgEnc(name, text,recKey);
-        // console.log(msg);
+        console.log(msg);
         
         if (room) {
             io.to(room).emit('encmessage', msg)
@@ -141,11 +156,11 @@ function buildMsg(name, text) {
     }
 }
 
-async function buildMsgEnc(name, text,key) {
-    let msg= await encryptMessage(key,text);
+async function buildMsgEnc(name, msg,key) {
+    let text= await encryptMessage(key,msg);
     return {
         name,
-        msg,
+        text,
         time: new Intl.DateTimeFormat('default', {
             hour: 'numeric',
             minute: 'numeric',
@@ -174,10 +189,10 @@ async function activateUser(id, name, room, socket) {
         ])
         return {
             user: user,
-            pKey: privateKey
+            key: privateKey
         };
     });
-    return res;
+    return await res;
 }
 
 function userLeavesApp(id) {
@@ -212,5 +227,6 @@ async function encryptMessage(key,message) {
       key,
       encoded
     );
+    console.log(ciphertext);
     return ciphertext;
   }

@@ -69,11 +69,9 @@ socket.on("message", (data) => {
 
 socket.on("encmessage", async (data) => {
     activity.textContent = ""
-    console.log(data);
-    console.log(100000);
-    console.log(currKey);
     const { name, text, time } = data
-    const decrypted = await decrypt(currKey,text);
+    console.log(text);
+    const decrypted = await decrypt(text);
     const li = document.createElement('li')
     li.className = 'post'
     if (name === nameInput.value) li.className = 'post post--left'
@@ -114,8 +112,7 @@ socket.on('roomList', ({ rooms }) => {
     showRooms(rooms)
 })
 
-socket.on('pkey', ({ key }) => {
-    console.log(key);
+socket.on('pkey', ( key ) => {
     currKey=key;
 })
 
@@ -145,12 +142,45 @@ function showRooms(rooms) {
     }
 }
 
-async function decrypt(key,ciphertext){
+async function decrypt(ciphertext){
+    function str2ab(str) {
+        const buf = new ArrayBuffer(str.length);
+        const bufView = new Uint8Array(buf);
+        for (let i = 0, strLen = str.length; i < strLen; i++) {
+          bufView[i] = str.charCodeAt(i);
+        }
+        return buf;
+    }
+    function importPrivateKey(pem) {
+        // fetch the part of the PEM string between header and footer
+        const pemHeader = "-----BEGIN PRIVATE KEY-----";
+        const pemFooter = "-----END PRIVATE KEY-----";
+        const pemContents = pem.substring(
+            pemHeader.length,
+            pem.length - pemFooter.length,
+        );
+        // base64 decode the string to get the binary data
+        const binaryDerString = atob(pemContents);
+        // convert from a binary string to an ArrayBuffer
+        const binaryDer = str2ab(binaryDerString);
+
+        return crypto.subtle.importKey(
+            "pkcs8",
+            binaryDer,
+            {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+            },
+            true,
+            ["decrypt"],
+        );
+    }
+    console.log(ciphertext);
     let decrypted = await window.crypto.subtle.decrypt(
         {
           name: "RSA-OAEP"
         },
-        key,
+        await importPrivateKey(currKey),
         ciphertext
       );
     let decoder= new TextDecoder();
