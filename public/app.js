@@ -169,6 +169,7 @@ function showRooms(rooms) {
 }
 
 async function decrypt(ciphertext){
+    //turn currkey into useable private key
     function str2ab(str) {
         const buf = new ArrayBuffer(str.length);
         const bufView = new Uint8Array(buf);
@@ -201,6 +202,8 @@ async function decrypt(ciphertext){
             ["decrypt"],
         );
     }
+
+    //decryption process
     let decrypted = await window.crypto.subtle.decrypt(
         {
           name: "RSA-OAEP"
