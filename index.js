@@ -68,10 +68,21 @@ io.on('connection', socket => {
             const pemExported = `-----BEGIN PRIVATE KEY-----\n${exportedAsBase64}\n-----END PRIVATE KEY-----`;
             return pemExported;
         }
-          
-
-        // join room 
-        socket.join(user.room)
+        
+        if(getAllActiveRooms().length>0){
+            if(user.room===getAllActiveRooms()[0]){
+                // join room 
+                socket.join(user.room)
+            }
+            else{
+                return;
+            }
+        }
+        else{
+            // join room 
+            socket.join(user.room)
+        }
+        
 
         // To user who joined 
         socket.emit('message', buildMsg(ADMIN, `You have joined the ${user.room} chat room`))

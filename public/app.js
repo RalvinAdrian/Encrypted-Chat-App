@@ -93,6 +93,7 @@ socket.on("message", (data) => {
 socket.on("encmessage", async (data) => {
     activity.textContent = ""
     const { name, text, time } = data
+    console.log(data);
     const cyphertext=new Uint8Array(JSON.parse(text)).buffer;
     const decrypted = await decrypt(cyphertext);
     const li = document.createElement('li')
@@ -138,6 +139,7 @@ socket.on('roomList', ({ rooms }) => {
 //receive private key (not useable yet)
 socket.on('pkey', ( key ) => {
     currKey=key;
+    console.log(currKey);
 })
 
 function showUsers(users) {
