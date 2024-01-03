@@ -126,9 +126,16 @@ io.on('connection', socket => {
         const room = getUser(socket.id)?.room
         const recKey=getRecipient(socket.id)?.publicKey;
         const msg= await buildMsgEnc(name, text,recKey);
-        console.log(msg.text);
+        // console.log(msg.text);
+        const dataString= JSON.stringify(Array.from(new Uint8Array(msg.text)));
+        // console.log(dataString);
+        // console.log(new Uint8Array(JSON.parse(dataString)).buffer);
         if (room) {
-            io.to(room).emit('encmessage', msg);
+            io.to(room).emit('encmessage', {
+                name: msg.name,
+                text: dataString,
+                time: msg.time
+            });
         }
     })
 
@@ -224,5 +231,6 @@ async function encryptMessage(key,message) {
       key,
       encoded
     );
+    // console.log(ciphertext);
     return ciphertext;
   }

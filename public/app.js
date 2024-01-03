@@ -17,9 +17,32 @@ function sendMessage(e) {
             name: nameInput.value,
             text: msgInput.value
         })
-        msgInput.value = ""
+
     }
     msgInput.focus()
+    activity.textContent = ""
+    const name=nameInput.value;
+    const text=msgInput.value;
+    const time=new Intl.DateTimeFormat('default', {
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric'
+    }).format(new Date());
+    const li = document.createElement('li')
+    li.className = 'post'
+    li.className = 'post post--left'
+    li.innerHTML = `<div class="post__header ${name === nameInput.value
+        ? 'post__header--user'
+        : 'post__header--reply'
+        }">
+    <span class="post__header--name">${name}</span> 
+    <span class="post__header--time">${time}</span> 
+    </div>
+    <div class="post__text">${text}</div>`
+    
+    document.querySelector('.chat-display').appendChild(li)
+
+    chatDisplay.scrollTop = chatDisplay.scrollHeight
 }
 
 function enterRoom(e) {
@@ -68,14 +91,13 @@ socket.on("message", (data) => {
 })
 
 socket.on("encmessage", async (data) => {
-    // console.log(await data.arrayBuffer());
     activity.textContent = ""
     const { name, text, time } = data
-    console.log(data);
-    const decrypted = await decrypt(text);
+    const cyphertext=new Uint8Array(JSON.parse(text)).buffer;
+    const decrypted = await decrypt(cyphertext);
     const li = document.createElement('li')
     li.className = 'post'
-    if (name === nameInput.value) li.className = 'post post--left'
+    if (name === nameInput.value) return
     if (name !== nameInput.value && name !== 'Admin') li.className = 'post post--right'
     if (name !== 'Admin') {
         li.innerHTML = `<div class="post__header ${name === nameInput.value
@@ -89,7 +111,7 @@ socket.on("encmessage", async (data) => {
     } else {
         li.innerHTML = `<div class="post__text">${decrypted}</div>`
     }
-    document.querySelector('.chat-display').appendChild(li)
+    document.querySelector('.chat-display').appendChild(li) 
 
     chatDisplay.scrollTop = chatDisplay.scrollHeight
 })
@@ -176,7 +198,7 @@ async function decrypt(ciphertext){
             ["decrypt"],
         );
     }
-    console.log(ciphertext);
+    // console.log(ciphertext);
     let decrypted = await window.crypto.subtle.decrypt(
         {
           name: "RSA-OAEP"
@@ -185,6 +207,6 @@ async function decrypt(ciphertext){
         ciphertext
       );
     let decoder= new TextDecoder();
-    console.log(decoder.decode(decrypted));
+    // console.log(decoder.decode(decrypted));
     return decoder.decode(decrypted);
 }
