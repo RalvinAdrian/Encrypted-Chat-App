@@ -135,6 +135,7 @@ socket.on('roomList', ({ rooms }) => {
     showRooms(rooms)
 })
 
+//receive private key (not useable yet)
 socket.on('pkey', ( key ) => {
     currKey=key;
 })
@@ -198,7 +199,6 @@ async function decrypt(ciphertext){
             ["decrypt"],
         );
     }
-    // console.log(ciphertext);
     let decrypted = await window.crypto.subtle.decrypt(
         {
           name: "RSA-OAEP"
@@ -207,6 +207,5 @@ async function decrypt(ciphertext){
         ciphertext
       );
     let decoder= new TextDecoder();
-    // console.log(decoder.decode(decrypted));
     return decoder.decode(decrypted);
 }

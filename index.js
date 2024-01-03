@@ -4,8 +4,6 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import { Socket } from 'dgram'
-import { serialize, parse } from "cookie";
-import FileReader from "fs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -57,8 +55,8 @@ io.on('connection', socket => {
                 users: getUsersInRoom(prevRoom)
             })
         }
+
         //send private key to user
-        // console.log( await exportCryptoKey(key));
         socket.emit('pkey',await exportCryptoKey(key));
         function ab2str(buf) {
             return String.fromCharCode.apply(null, new Uint8Array(buf));
@@ -71,7 +69,6 @@ io.on('connection', socket => {
             return pemExported;
         }
           
-        // console.log(await importPrivateKey(await exportCryptoKey(key)));
 
         // join room 
         socket.join(user.room)
@@ -91,7 +88,7 @@ io.on('connection', socket => {
         io.emit('roomList', {
             rooms: getAllActiveRooms()
         })
-
+        user,key=null;
     })
 
     // When user disconnects - to all others 
@@ -114,22 +111,12 @@ io.on('connection', socket => {
         console.log(`User ${socket.id} disconnected`)
     })
 
-    // Listening for a message event 
-    // socket.on('message', ({ name, text }) => {
-    //     const room = getUser(socket.id)?.room
-    //     if (room) {
-    //         io.to(room).emit('message', buildMsg(name, text))
-    //     }
-    // })
-
+    // Listening for a message event from users
     socket.on('encmessage', async ({ name, text }) => {
         const room = getUser(socket.id)?.room
         const recKey=getRecipient(socket.id)?.publicKey;
         const msg= await buildMsgEnc(name, text,recKey);
-        // console.log(msg.text);
         const dataString= JSON.stringify(Array.from(new Uint8Array(msg.text)));
-        // console.log(dataString);
-        // console.log(new Uint8Array(JSON.parse(dataString)).buffer);
         if (room) {
             io.to(room).emit('encmessage', {
                 name: msg.name,
@@ -174,7 +161,7 @@ async function buildMsgEnc(name, msg,key) {
 }
 
 // User functions 
-async function activateUser(id, name, room, socket) {
+async function activateUser(id, name, room) {
     const res=crypto.subtle.generateKey(
         {
             name: "RSA-OAEP",
@@ -231,6 +218,5 @@ async function encryptMessage(key,message) {
       key,
       encoded
     );
-    // console.log(ciphertext);
     return ciphertext;
   }
