@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import { Socket } from 'dgram'
 import { serialize, parse } from "cookie";
+import FileReader from "fs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -29,7 +30,6 @@ const UsersState = {
 }
 
 const io = new Server(expressServer, {
-    cookie:true,
     cors: {
         origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5500", "http://127.0.0.1:5500"]
     }
@@ -40,9 +40,8 @@ io.on('connection', socket => {
 
     // Upon connection - only to user 
     socket.emit('message', buildMsg(ADMIN, "Welcome to Chat App!"))
-
     socket.on('enterRoom',  async ({ name, room }) => {
-
+        
         // leave previous room 
         const prevRoom = getUser(socket.id)?.room
 
@@ -126,12 +125,10 @@ io.on('connection', socket => {
     socket.on('encmessage', async ({ name, text }) => {
         const room = getUser(socket.id)?.room
         const recKey=getRecipient(socket.id)?.publicKey;
-        
         const msg= await buildMsgEnc(name, text,recKey);
-        console.log(msg);
-        
+        console.log(msg.text);
         if (room) {
-            io.to(room).emit('encmessage', msg)
+            io.to(room).emit('encmessage', msg);
         }
     })
 
@@ -227,6 +224,5 @@ async function encryptMessage(key,message) {
       key,
       encoded
     );
-    console.log(ciphertext);
     return ciphertext;
   }

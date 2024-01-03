@@ -68,9 +68,10 @@ socket.on("message", (data) => {
 })
 
 socket.on("encmessage", async (data) => {
+    // console.log(await data.arrayBuffer());
     activity.textContent = ""
     const { name, text, time } = data
-    console.log(text);
+    console.log(data);
     const decrypted = await decrypt(text);
     const li = document.createElement('li')
     li.className = 'post'
